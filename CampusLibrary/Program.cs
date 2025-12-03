@@ -1,29 +1,30 @@
 ﻿/*
  I tried to expand off the previous menu by adding a basic 'User' system with login functionality.
  Each student has their own inventory and account. There is a very basic login system too.
+ I originally planned to use Sqlite for data storage but ran out of time, more info at the bottom.
  */
 
 using System.Globalization;
 using System.Linq.Expressions;
-using Microsoft.Data.Sqlite;
+//using Microsoft.Data.Sqlite;
 
 Library library;
 var fileList = LoadFileNames();
 var dbFileName = "";
 if (fileList.Count == 0)
 {
-    Console.WriteLine("No database files found. Please create a library.");
+    Console.WriteLine("No CSV files found. Please create a library.");
     library = LibraryBuilder();
 }
 else
 {
-    Console.WriteLine("Available database files:");
+    Console.WriteLine("Available CSV files:");
     for (int i = 0; i < fileList.Count; i++)
     {
         Console.WriteLine($"{i + 1}. {fileList[i]}");
     }
 
-    Console.Write("What number database file would you like to load? (0 to create new): ");
+    Console.Write("What number file would you like to load? (0 to create new): ");
     int fileChoice;
     while (true)
     {
@@ -32,6 +33,8 @@ else
             fileChoice = Convert.ToInt32(Console.ReadLine());
             if (fileChoice == 0)
             {
+                Console.WriteLine("Creating new library.");
+                library = LibraryBuilder();
                 dbFileName = "";
                 break;
             }
@@ -48,18 +51,11 @@ else
         }
         break;
     }
-    if (fileChoice == 0)
-    {
-        Console.WriteLine("Creating new library.");
-        library = LibraryBuilder();
-        return;
-    }
-    dbFileName = fileList[fileChoice - 1] + ".db";
-    var dbConnection = new SqliteConnection($"Data Source={dbFileName}");
-    // Send to loader when that function is done, for now create new library so it compiles
-    Console.WriteLine("Not Implemented. Create new library.");
-    library = LibraryBuilder();
+    dbFileName = fileList[fileChoice - 1] + ".csv";
+    library = LoadLibraryFromCsv(dbFileName);
+    Console.WriteLine($"Loaded library: {library.Name}");
 }
+
 int choice = PreMenu();
 while (choice != 4)
 {
@@ -71,7 +67,14 @@ while (choice != 4)
             break;
         case 2:
             // Save Library
-            Console.WriteLine("Not Implemented.");
+            Console.WriteLine("Enter a name for the CSV file (without extension):");
+            string? fileNameInput = Console.ReadLine();
+            if (!string.IsNullOrEmpty(fileNameInput))
+            {
+                Console.WriteLine("Cancelling save.");
+                break;
+            }
+            SaveLibraryToCsv(library, dbFileName);
             break;
         case 3:
             // View Library
@@ -87,6 +90,128 @@ while (choice != 4)
 
 Console.Clear();
 int loggedInStudentId = -1;
+
+
+
+
+
+
+//test for csv in/out
+static bool SaveLibraryToCsv(Library library, string fileName)
+{
+    try
+    {
+        using (var writer = new StreamWriter(fileName))
+        {
+            // Write library info
+            writer.WriteLine(library.CsvFormat());
+            // Write items
+            foreach (var item in library.Items)
+            {
+                writer.WriteLine(item.CsvFormat());
+            }
+            // Write students
+            foreach (var student in library.Students)
+            {
+                writer.WriteLine(student.CsvFormat());
+            }
+            // Write checked out items
+            foreach (var checkOut in library.CheckOutItems)
+            {
+                writer.WriteLine(checkOut.CsvFormat());
+            }
+        }
+        return true;
+    }
+    catch
+    {
+        return false;
+    }
+}
+
+
+static Library LoadLibraryFromCsv(string fileName)
+{
+    var library = new Library();
+    var itemDict = new Dictionary<int, LibraryItem>();
+    var studentDict = new Dictionary<int, Student>();
+
+    var lines = File.ReadAllLines(fileName);
+    foreach (var line in lines)
+    {
+        var parts = line.Split(',');
+        switch (parts[0])
+        {
+            case "Library":
+                library.Name = parts[1].Trim('"');
+                library.MaxStudentItems = int.Parse(parts[2]);
+                break;
+            case "Item":
+                var item = new LibraryItem(
+                    parts[2].Trim('"'),
+                    parts[3].Trim('"'),
+                    string.IsNullOrEmpty(parts[4]) ? null : DateOnly.Parse(parts[4]),
+                    double.Parse(parts[5]),
+                    int.Parse(parts[1])
+                );
+                itemDict[item.Id] = item;
+                library.Items.Add(item);
+                break;
+            case "Student":
+                var student = new Student(
+                    parts[2].Trim('"'),
+                    parts[3].Trim('"'),
+                    parts[4].Trim('"'),
+                    int.Parse(parts[1])
+                )
+                {
+                    Balance = double.Parse(parts[5])
+                };
+                studentDict[student.Id] = student;
+                library.Students.Add(student);
+                break;
+            case "CheckOut":
+                var checkOutItem = new CheckOutItem(
+                    int.Parse(parts[1]),
+                    itemDict[int.Parse(parts[2])],
+                    DateOnly.Parse(parts[3]),
+                    DateOnly.Parse(parts[4])
+                );
+                if (!string.IsNullOrEmpty(parts[5]))
+                {
+                    checkOutItem.CheckIn(DateOnly.Parse(parts[5]));
+                }
+                library.CheckOutItems.Add(checkOutItem);
+                studentDict[int.Parse(parts[1])].AddCheckedOutItem(checkOutItem);
+                break;
+        }
+    }
+
+    // finish up
+    Console.WriteLine("Load complete. Finishing setup...");
+    LibraryItem.SetIdAutoIncrementPointer(itemDict.Keys.Max() + 1);
+    Student.SetIdAutoIncrementPointer(studentDict.Keys.Max() + 1);
+    // Students rely on their checked out items being in a list within the student object
+    // Go through each checked out item and add it to the student's list
+    foreach (var checkOut in library.CheckOutItems)
+    {
+        if (studentDict.TryGetValue(checkOut.StudentId, out var student))
+        {
+            student.AddCheckedOutItem(checkOut);
+        }
+    }
+    return library;
+}
+
+
+
+
+
+
+
+
+
+
 
 // Student side
 StudentLoginProcess();
@@ -538,7 +663,7 @@ static int StudentMenu()
 }
 
 // File functions
-static List<string> LoadFileNames(string fileType = "db")
+static List<string> LoadFileNames(string fileType = "csv")
 {
     var files = new List<string>();
     foreach (string file in Directory.GetFiles(Directory.GetCurrentDirectory(), $"*.{fileType}"))
@@ -548,44 +673,6 @@ static List<string> LoadFileNames(string fileType = "db")
 
     return files;
 }
-
-/* Trying to use Sqlite for data storage, tables structure:
- CREATE TABLE Library (
-    Name TEXT PRIMARY KEY,
-    MaxStudentItems INT
-);
-CREATE TABLE LibraryItem (
-    Id INT PRIMARY KEY,
-    Title TEXT,
-    Type TEXT,
-    ReleaseDate DATE,
-    DailyLateFee DECIMAL(5,2),
-    IsAvailable BOOLEAN
-);
-CREATE TABLE Student (
-    Id INT PRIMARY KEY,
-    Name TEXT,
-    Email TEXT,
-    Password TEXT,
-    Balance DECIMAL(7,2)
-);
-CREATE TABLE CheckOutItem (
-    StudentId INT,
-    Item INT,
-    CheckOutDate DATE,
-    DueDate DATE,
-    CheckInDate DATE,
-    PRIMARY KEY (StudentId, Item),
-    FOREIGN KEY (StudentId) REFERENCES Student(Id),
-    FOREIGN KEY (Item) REFERENCES LibraryItem(Id)
-);
-*/
-
-// nothing accepts that this exists, so i have to use this same line every time i get the current date
-// static DateOnly GetCurrentDate()
-// {
-//     return DateOnly.FromDateTime(DateTime.Now);
-// }
 
 // The classes for each item in the library
 internal class Library
@@ -604,6 +691,10 @@ internal class Library
         Students = new List<Student>();
         MaxStudentItems = maxStudentItems;
     }
+    public string CsvFormat()
+    {
+        return $"Library,\"{this.Name}\",{this.MaxStudentItems}";
+    }
 }
 
 internal class LibraryItem
@@ -616,9 +707,16 @@ internal class LibraryItem
     private double DailyLateFee { get; }
     private bool IsAvailable { get; set; }
 
-    public LibraryItem(string title, string type, DateOnly? releaseDate, double dailyLateFee)
+    public LibraryItem(string title, string type, DateOnly? releaseDate, double dailyLateFee, int id = -1)
     {
-        Id = _nextId++;
+        if (id == -1)
+        {
+            Id = _nextId++;
+        }
+        else
+        {
+            Id = id;
+        }
         Title = title;
         Type = type;
         ReleaseDate = releaseDate;
@@ -660,6 +758,16 @@ internal class LibraryItem
     {
         return DailyLateFee;
     }
+
+    public string CsvFormat()
+    {
+        return
+            $"Item,{this.Id},\"{this.Title}\",\"{this.Type}\",{this.ReleaseDate?.ToString("yyyy-MM-dd") ?? ""},{this.DailyLateFee},{this.IsAvailable}";
+    }
+    public static void SetIdAutoIncrementPointer(int nextId)
+    {
+        _nextId = nextId;
+    }
 }
 // The student class, students can check out items where it is assigned to them
 internal class Student
@@ -674,9 +782,16 @@ internal class Student
     public double Balance { get; set; }
     private List<CheckOutItem> _checkedOutItems = new List<CheckOutItem>();
 
-    public Student(string name, string email, string password)
+    public Student(string name, string email, string password, int id = -1)
     {
-        Id = _nextId++;
+        if (id == -1)
+        {
+            Id = _nextId++;
+        }
+        else
+        {
+            Id = id;
+        }
         Name = name;
         Email = email;
         Password = password;
@@ -713,13 +828,22 @@ internal class Student
         Balance += amount;
         return Balance;
     }
+    //used by csv
+    public string CsvFormat()
+    {
+        return $"Student,{this.Id},\"{this.Name}\",\"{this.Email}\",\"{this.Password}\",{this.Balance}";
+    }
+    public static void SetIdAutoIncrementPointer(int nextId)
+    {
+        _nextId = nextId;
+    }
 
 }
 // The class that checks out items and sets dates
 internal class CheckOutItem
 {
 
-    private int StudentId { get; }
+    public int StudentId { get; }
     private LibraryItem Item { get; }
     private DateOnly CheckOutDate { get; set; }
     private DateOnly DueDate { get; }
@@ -780,6 +904,58 @@ internal class CheckOutItem
         return true;
     }
 
+    public string CsvFormat()
+    {
+        return
+            $"CheckOut,{this.StudentId},{this.Item.Id},{this.CheckOutDate},{this.DueDate},{this.CheckInDate?.ToString("yyyy-MM-dd") ?? ""}";
+    }
 }
 
 
+/* The original Sqlite idea was going to use this table structure.
+ Since SQL is more designed to handle relations, I didn't have to store whole lists of objects.
+ I could also store multiple libraries and their contents in one database.
+ You just select what library you want to load, and everything else is linked by that id so it would all get pulled in.
+ I ran out of time to look into how c# implements SQLite, most of that time was spent on the database project.
+ It follows the C# naming conventions to make it easier to map to the classes I made for this assigment.
+ 
+ --- SQL Table Structure ---
+CREATE TABLE Library (
+    Id INT PRIMARY KEY,
+    Name TEXT NOT NULL,
+    MaxStudentItems INT NOT NULL DEFAULT 3
+);
+CREATE TABLE LibraryItem (
+    Library INT,
+    Id INT,
+    Title TEXT NOT NULL,
+    Type TEXT NOT NULL,
+    ReleaseDate DATE,
+    DailyLateFee DECIMAL(5,2) NOT NULL DEFAULT 0.50,
+    IsAvailable BOOLEAN NOT NULL DEFAULT TRUE,
+    PRIMARY KEY (Library, Id),
+    FOREIGN KEY (Library) REFERENCES Library(Id)
+);
+CREATE TABLE Student (
+    Library INT,
+    Id INT,
+    Name TEXT NOT NULL,
+    Email TEXT NOT NULL,
+    Password TEXT NOT NULL,
+    Balance DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+    PRIMARY KEY (Library, Id),
+    FOREIGN KEY (Library) REFERENCES Library(Id)
+);
+CREATE TABLE CheckOutItem (
+    Library INT,
+    Student INT,
+    Item INT,
+    CheckOutDate DATE NOT NULL,
+    DueDate DATE NOT NULL DEFAULT (DATE('now', '+14 days')),
+    CheckInDate DATE,
+    PRIMARY KEY (Library, Student, Item),
+    FOREIGN KEY (Library) REFERENCES Library(Id),
+    FOREIGN KEY (Student) REFERENCES Student(Id),
+    FOREIGN KEY (Item) REFERENCES LibraryItem(Id)
+);
+*/
