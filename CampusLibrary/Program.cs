@@ -10,10 +10,17 @@ using System.Linq.Expressions;
 
 Library library;
 var fileList = LoadFileNames();
-var dbFileName = "";
+var dbFileName = "*";
 if (fileList.Count == 0)
 {
     Console.WriteLine("No CSV files found. Please create a library.");
+    Console.WriteLine("Enter a file name for your library (without .csv), this will be used when saving:");
+    string? fileNameInput = Console.ReadLine();
+    if (string.IsNullOrEmpty(fileNameInput))
+    {
+        fileNameInput = "*";
+    }
+    dbFileName = fileNameInput + ".csv";
     library = LibraryBuilder();
 }
 else
@@ -33,9 +40,16 @@ else
             fileChoice = Convert.ToInt32(Console.ReadLine());
             if (fileChoice == 0)
             {
+                
+                Console.WriteLine("Enter a file name for your library (without .csv), this will be used when saving:");
+                string? fileNameInput = Console.ReadLine();
+                if (string.IsNullOrEmpty(fileNameInput))
+                {
+                    fileNameInput = "*";
+                }
+                dbFileName = fileNameInput + ".csv";
                 Console.WriteLine("Creating new library.");
                 library = LibraryBuilder();
-                dbFileName = "";
                 break;
             }
             if (fileChoice < 1 || fileChoice > fileList.Count)
@@ -69,18 +83,27 @@ while (choice != 4)
             // Save Library
             Console.WriteLine("Enter a name for the CSV file (without extension):");
             string? fileNameInput = Console.ReadLine();
-            if (!string.IsNullOrEmpty(fileNameInput))
+            if (string.IsNullOrEmpty(fileNameInput))
             {
                 Console.WriteLine("Cancelling save.");
                 break;
             }
-            SaveLibraryToCsv(library, dbFileName);
+            dbFileName = fileNameInput + ".csv";
+            if(SaveLibraryToCsv(library, dbFileName))
+            {
+                Console.WriteLine($"Library saved to {dbFileName} successfully.");
+            }
+            else
+            {
+                Console.WriteLine("Error saving library.");
+            }
             break;
         case 3:
             // View Library
             ShowLibraryMenu(library);
             break;
         case 5:
+        case 0:
             // Exit
             Environment.Exit(0);
             break;
@@ -93,10 +116,7 @@ int loggedInStudentId = -1;
 
 
 
-
-
-
-//test for csv in/out
+// csv io
 static bool SaveLibraryToCsv(Library library, string fileName)
 {
     try
@@ -189,10 +209,27 @@ static Library LoadLibraryFromCsv(string fileName)
 
     // finish up
     Console.WriteLine("Load complete. Finishing setup...");
-    LibraryItem.SetIdAutoIncrementPointer(itemDict.Keys.Max() + 1);
-    Student.SetIdAutoIncrementPointer(studentDict.Keys.Max() + 1);
+    if (studentDict.Count == 0)
+    {
+        Student.SetIdAutoIncrementPointer(1);
+    }
+    else
+    {
+        Student.SetIdAutoIncrementPointer(studentDict.Keys.Max() + 1);
+    }
+    
+    if (itemDict.Count == 0)
+    {
+        LibraryItem.SetIdAutoIncrementPointer(1);
+    }
+    else
+    {
+        LibraryItem.SetIdAutoIncrementPointer(itemDict.Keys.Max() + 1);
+    }
+    if (library.CheckOutItems.Count == 0) return library;
     // Students rely on their checked out items being in a list within the student object
     // Go through each checked out item and add it to the student's list
+    // This is skipped if there are no checked out items, or it'll throw an error
     foreach (var checkOut in library.CheckOutItems)
     {
         if (studentDict.TryGetValue(checkOut.StudentId, out var student))
@@ -203,21 +240,12 @@ static Library LoadLibraryFromCsv(string fileName)
     return library;
 }
 
-
-
-
-
-
-
-
-
-
-
 // Student side
 StudentLoginProcess();
 // Logged in
 while (true)
 {
+    Console.Clear();
     choice = StudentMenu();
     // Loads the student
     var student = library.Students.First(s => s.Id == loggedInStudentId);
@@ -354,6 +382,7 @@ while (true)
             }
             break;
         case 5:
+        case 0:
             // Logout
             Console.WriteLine("Are you sure you want to logout? (Y/n)");
             string logoutChoice = Console.ReadLine() ?? "n";
@@ -376,6 +405,7 @@ void StudentLoginProcess()
 {
     while (loggedInStudentId == -1)
     {
+        Console.Clear();
         int loginChoice = LoginMenu();
         switch (loginChoice)
         {
@@ -388,6 +418,7 @@ void StudentLoginProcess()
                 int studentId = StudentLogin(library, email, password);
                 if (studentId != -1)
                 {
+                    Console.Clear();
                     loggedInStudentId = studentId;
                     Console.WriteLine("Login successful.");
                 }
@@ -422,7 +453,17 @@ void StudentLoginProcess()
                 }
                 break;
             case 3:
-                // Exit
+            case 0:
+                // Save and exit
+                Console.WriteLine("Saving changes...");
+                if (SaveLibraryToCsv(library, dbFileName))
+                {
+                    Console.WriteLine("Changes saved successfully.");
+                }
+                else
+                {
+                    Console.WriteLine("Error, changes not saved.");
+                }
                 Environment.Exit(0);
                 break;
         }
@@ -526,7 +567,7 @@ static void ShowLibraryMenu(Library library)
         try
         {
             choice = Convert.ToInt32(Console.ReadLine());
-            if (choice < 1 || choice > 5)
+            if (choice < 0 || choice > 5)
             {
                 Console.WriteLine("Invalid choice. Please enter a number between 1 and 5.");
                 continue;
@@ -564,7 +605,8 @@ static void ShowLibraryMenu(Library library)
                         Console.WriteLine($"ID: {student.Id}, Name: {student.Name}, Balance: {student.Balance:C}");
                     }
                     break;
-                case 5:
+                case 5: 
+                case 0:
                     return;
             }
         }
