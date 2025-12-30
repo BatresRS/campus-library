@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CampusLibrary", "CampusLibrary\CampusLibrary.csproj", "{1D606CAF-DE59-4D59-9265-B5AF0CF421F1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CampusLibrary", "CampusLibrary\CampusLibrary.csproj", "{3A63B435-5316-4F49-B7DE-5FB3B03DAE37}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -8,9 +8,9 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{1D606CAF-DE59-4D59-9265-B5AF0CF421F1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1D606CAF-DE59-4D59-9265-B5AF0CF421F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1D606CAF-DE59-4D59-9265-B5AF0CF421F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1D606CAF-DE59-4D59-9265-B5AF0CF421F1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3A63B435-5316-4F49-B7DE-5FB3B03DAE37}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3A63B435-5316-4F49-B7DE-5FB3B03DAE37}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3A63B435-5316-4F49-B7DE-5FB3B03DAE37}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3A63B435-5316-4F49-B7DE-5FB3B03DAE37}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

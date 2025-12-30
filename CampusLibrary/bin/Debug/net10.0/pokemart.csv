@@ -1,9 +1,8 @@
-Library,Pokemart,5,,,,
-Item,1,Cut,HM,9/28/1998,0.75,TRUE
-Item,2,Surf,HM,9/28/1998,0.75,FALSE
-Item,3,Leftovers,TM,10/15/2000,0.5,TRUE
-Item,4,Snarl,TM,3/4/2011,0.5,TRUE
-Item,5,Unovan Map,Key Item,10/7/2012,1,TRUE
-Student,1,Ash,ketchum@pokemon.com,Satoshi25,15,
-Student,2,Meowth,meowth@tr.pokemon.com,ThatsRight52,0,
-CheckOut,1,2,12/3/2025,12/17/2025,,
+LIBRARY,Pokemart,5,14,,,
+ITEM,1,Cut,HM,0,0.75,1/1/2025
+ITEM,2,Surf,HM,1,0.75,1/1/2025
+ITEM,3,Leftovers,TM,0,0.5,1/1/2025
+ITEM,4,Snarl,TM,0,0.5,1/1/2025
+ITEM,5,Unovan Map,Key Item,0,1,1/1/2025
+USER,1,Ash,ketchum@pokemon.com,Satoshi25,15,
+USER,2,Meowth,meowth@tr.pokemon.com,ThatsRight52,0,
